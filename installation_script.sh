@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# J.A.R.V.I.S. MARK-2 - Final Ultra-Robust Installation Script
-# This script bypasses broken upstream setup scripts and builds BitNet manually.
+# J.A.R.V.I.S. MARK-2 - Ultimate Robust Installation Script
+# This script handles Python 3.14 compatibility and BitNet codegen requirements.
 
 echo "🤖 Starting J.A.R.V.I.S. MARK-2 Setup..."
 
@@ -29,12 +29,21 @@ if [ ! -d "$VENV_DIR" ]; then
 fi
 source "$VENV_DIR/bin/activate"
 
+# Force use of venv's pip and python
+export PIP_EXECUTABLE="$VENV_DIR/bin/pip"
+export PYTHON_EXECUTABLE="$VENV_DIR/bin/python3"
+
 echo "Creating .env file..."
 echo "PICOVOICE_ACCESS_KEY=Qvv+c3PAMdarQCAWbWdMjMG25cpSWJKZco0FnbEnUCFlG06F9e8S/Q==" > .env
 
-echo "pip: Installing core requirements..."
-pip install --upgrade pip
-pip install SpeechRecognition pvporcupine pvrecorder soundfile rapidfuzz python-dotenv requests psutil pyaudio numpy huggingface_hub
+echo "pip: Installing core requirements (Relaxed for Python 3.14)..."
+$PIP_EXECUTABLE install --upgrade pip setuptools wheel
+$PIP_EXECUTABLE install SpeechRecognition pvporcupine pvrecorder soundfile rapidfuzz python-dotenv requests psutil pyaudio huggingface_hub
+
+# Special handling for numpy/torch on 3.14
+echo "pip: Installing compatible numpy and torch..."
+$PIP_EXECUTABLE install "numpy>=1.26.4"
+$PIP_EXECUTABLE install --extra-index-url https://download.pytorch.org/whl/cpu "torch>=2.2.1"
 
 # 3. Whisper.cpp Setup
 echo "🎙️ Setting up Whisper.cpp..."
@@ -50,37 +59,38 @@ echo "📥 Downloading Whisper base.en model..."
 ./models/download-ggml-model.sh base.en
 cd "$SCRIPT_DIR"
 
-# 4. BitNet Setup (Manual Build)
+# 4. BitNet Setup (Using fixed python paths)
 echo "🧠 Setting up BitNet 1.58..."
 if [ ! -d "BitNet/.git" ]; then
     echo "Cloning BitNet..."
     rm -rf BitNet
     git clone --recursive https://github.com/microsoft/BitNet.git
-fi
-
-# Move venv back in if we just recloned
-if [ ! -d "BitNet/bitnet_env" ]; then
-    mkdir -p BitNet
+    # Re-initialize venv if we recloned
     python3 -m venv "$VENV_DIR"
 fi
-source "$VENV_DIR/bin/activate"
 
+source "$VENV_DIR/bin/activate"
 cd BitNet
+
 echo "pip: Installing BitNet dependencies..."
-pip install -r requirements.txt
-pip install ./3rdparty/llama.cpp/gguf-py
+# Remove torch pinning from requirements to avoid failure on 3.14
+sed -i 's/torch~=2.2.1/torch>=2.2.1/g' requirements.txt 2>/dev/null
+sed -i 's/numpy~=1.26.4/numpy>=1.26.4/g' requirements.txt 2>/dev/null
+$PIP_EXECUTABLE install -r requirements.txt
+$PIP_EXECUTABLE install ./3rdparty/llama.cpp/gguf-py
 
 echo "📥 Downloading BitNet 2B model..."
-python3 -m huggingface_hub.commands.hf_cli download microsoft/BitNet-b1.58-2B-4T-gguf --local-dir models/BitNet-b1.58-2B-4T
+$PYTHON_EXECUTABLE -m huggingface_hub.commands.hf_cli download microsoft/BitNet-b1.58-2B-4T-gguf --local-dir models/BitNet-b1.58-2B-4T
 
-echo "🛠️ Compiling BitNet manually (Bypassing broken setup_env.py)..."
-cmake -B build -DGGML_BITNET=ON
-cmake --build build --config Release -j$(nproc)
+echo "🛠️ Running BitNet Setup (Codegen + Compile)..."
+# Use the venv python explicitly so setup_env.py finds everything
+$PYTHON_EXECUTABLE setup_env.py -md models/BitNet-b1.58-2B-4T -q i2_s
 
 # Verify build
 if [ ! -f "build/bin/llama-server" ]; then
-    echo "❌ Manual build failed. Please check the logs above."
-    exit 1
+    echo "⚠️ setup_env.py failed to build llama-server. Trying manual CMake..."
+    cmake -B build -DGGML_BITNET=ON -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+    cmake --build build --config Release -j$(nproc)
 fi
 cd "$SCRIPT_DIR"
 
