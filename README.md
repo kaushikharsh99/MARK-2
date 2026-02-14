@@ -8,43 +8,60 @@ MARK-2 is a high-performance, voice-activated AI assistant rebuilt for local exe
 *   **BitNet 1.58 (2B):** Cutting-edge 1-bit LLM for near-instant local processing on CPU.
 *   **Whisper.cpp:** High-speed, C++ optimized local Speech-to-Text.
 *   **Piper TTS:** Clear and natural voice output using the **Ryan-High** model.
-*   **Persistent Memory:** Model stays loaded in RAM for a fluid, conversational experience.
-*   **Humorous Persona:** Pre-configured with a snappy, witty, and slightly sarcastic butler personality.
+*   **Persona Engine:** Optimized for witty, professional, and snarky one-liner responses.
 
-## 🛠️ Requirements
-*   **OS:** Linux (Fedora, Ubuntu, or Debian recommended).
-*   **Hardware:** 8GB+ RAM recommended (CPU-only).
-*   **Dependencies:** The installation script will automatically check for and install `cmake`, `clang`, `git`, and `portaudio`.
+## 🛠️ Proper Manual Installation
 
-## 📦 Installation (Recommended)
+Follow these steps to build the system properly on Fedora:
 
-The easiest way to set up J.A.R.V.I.S. is using the provided automated script. This will clone dependencies, compile the C++ binaries, set up the Python environment, and download all necessary models.
+### 1. Install System Dependencies
+```bash
+sudo dnf install -y git cmake gcc gcc-c++ make python3 portaudio-devel alsa-utils wget tar clang libgomp
+```
 
-1.  **Clone this repository:**
-    ```bash
-    git clone https://github.com/kaushikharsh99/MARK-2.git
-    cd MARK-2
-    ```
+### 2. Setup Conda Environment
+If you don't have Conda, the `installation_script.sh` can install it for you, or you can install Miniconda manually.
+```bash
+conda create -n bitnet-cpp python=3.9 -y
+conda activate bitnet-cpp
+```
 
-2.  **Run the installation script:**
-    ```bash
-    chmod +x installation_script.sh
-    ./installation_script.sh
-    ```
+### 3. Clone Properly (Recursive)
+```bash
+git clone --recursive https://github.com/microsoft/BitNet.git
+cd BitNet
+git submodule update --init --recursive
+```
+
+### 4. Install Requirements
+```bash
+pip install -r requirements.txt
+pip install ../ # installs jarvis core deps
+```
+
+### 5. Build Correctly
+```bash
+mkdir build
+cd build
+cmake -DCMAKE_BUILD_TYPE=Release ..
+make -j$(nproc)
+```
+
+## 📦 Automated Installation (Recommended)
+
+Alternatively, run the automated script which performs all the "Proper" steps above, including Python 3.14 compatibility fixes:
+
+```bash
+chmod +x installation_script.sh
+./installation_script.sh
+```
 
 ## 🖥️ Usage
 
-Once the setup is complete, you can start J.A.R.V.I.S. with a single command:
-
 ```bash
-./BitNet/bitnet_env/bin/python main.py
+conda activate bitnet-cpp
+python main.py
 ```
 
 *   **To Wake Up:** Say **"Jarvis"**.
-*   **To Interact:** Speak naturally. Jarvis is optimized for one-liner responses and will respond with his signature wit.
-
-## 📜 Technical Stack
-*   **Brain:** BitNet b1.58 2B (via llama-server)
-*   **STT:** Whisper.cpp (base.en)
-*   **TTS:** Piper (Ryan-High)
-*   **KWS:** Picovoice Porcupine
+*   **To Interact:** Speak naturally. Jarvis is optimized for one-liner responses.
