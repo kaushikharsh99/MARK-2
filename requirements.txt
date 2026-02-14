@@ -1,0 +1,5 @@
+# Jarvis MARK-2 Requirements
+# No heavy dependencies needed for core logic as we use BitNet CLI
+# But we might need these for future tools
+psutil
+requests

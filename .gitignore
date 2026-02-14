@@ -1,0 +1,33 @@
+# Environments
+.env
+venv/
+bitnet_env/
+__pycache__/
+*.pyc
+
+# Large Models & Binaries
+*.gguf
+*.bin
+*.onnx
+build/
+bin/
+
+# MARK-1 Specific
+MARK-1/venv/
+MARK-1/piper_bin/
+MARK-1/memory_db/
+MARK-1/.env
+
+# MARK-2 Specific
+MARK-2/.env
+MARK-2/BitNet/bitnet_env/
+MARK-2/BitNet/build/
+MARK-2/BitNet/logs/
+MARK-2/whisper.cpp/build/
+MARK-2/whisper.cpp/models/*.bin
+MARK-2/BitNet/models/
+
+# Logs & Debug
+*.log
+firebase-debug.log
+debug_screenshots/
