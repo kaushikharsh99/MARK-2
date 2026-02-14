@@ -10,51 +10,43 @@ MARK-2 is a high-performance, voice-activated AI assistant rebuilt for local exe
 *   **Piper TTS:** Clear and natural voice output using the **Ryan-High** model.
 *   **Persona Engine:** Optimized for witty, professional, and snarky one-liner responses.
 
-## 🛠️ Proper Manual Installation
+## 🛠️ Installation
 
-Follow these steps to build the system properly on Fedora:
+The setup is divided into two parts: an automated script for core dependencies and a manual build for the BitNet inference engine.
 
-### 1. Install System Dependencies
-```bash
-sudo dnf install -y git cmake gcc gcc-c++ make python3 portaudio-devel alsa-utils wget tar clang libgomp
-```
-
-### 2. Setup Conda Environment
-If you don't have Conda, the `installation_script.sh` can install it for you, or you can install Miniconda manually.
-```bash
-conda create -n bitnet-cpp python=3.9 -y
-conda activate bitnet-cpp
-```
-
-### 3. Clone Properly (Recursive)
-```bash
-git clone --recursive https://github.com/microsoft/BitNet.git
-cd BitNet
-git submodule update --init --recursive
-```
-
-### 4. Install Requirements
-```bash
-pip install -r requirements.txt
-pip install ../ # installs jarvis core deps
-```
-
-### 5. Build Correctly
-```bash
-mkdir build
-cd build
-cmake -DCMAKE_BUILD_TYPE=Release ..
-make -j$(nproc)
-```
-
-## 📦 Automated Installation (Recommended)
-
-Alternatively, run the automated script which performs all the "Proper" steps above, including Python 3.14 compatibility fixes:
+### 1. Automated Setup (Core Dependencies)
+The provided script handles system packages, STT/TTS engines, and Python environments.
 
 ```bash
 chmod +x installation_script.sh
 ./installation_script.sh
 ```
+
+### 2. Manual BitNet Setup (Critical)
+You must manually clone and compile Microsoft's **BitNet** repository inside the `MARK-2` project folder.
+
+1.  **Clone the Repository:**
+    Navigate to your `MARK-2` directory and clone the official repo:
+    ```bash
+    git clone --recursive https://github.com/microsoft/BitNet
+    cd BitNet
+    ```
+
+2.  **Install Requirements:**
+    ```bash
+    conda activate bitnet-cpp
+    pip install -r requirements.txt
+    ```
+
+3.  **Build the Engine:**
+    ```bash
+    mkdir build
+    cd build
+    cmake -DCMAKE_BUILD_TYPE=Release ..
+    make -j$(nproc)
+    ```
+
+**Note:** Ensure the resulting `BitNet` folder is located directly inside the `MARK-2` directory for the controller to function correctly.
 
 ## 🖥️ Usage
 

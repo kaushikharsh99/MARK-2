@@ -1,103 +1,110 @@
 #!/bin/bash
 
-# J.A.R.V.I.S. MARK-2 - Proper Automated Installation Script
-# Aligned with Official Microsoft Manual Build Steps
+set -e
 
 echo "🤖 Starting J.A.R.V.I.S. MARK-2 Setup..."
 
-# Get the directory where the script is located
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$SCRIPT_DIR"
 
-# 1. System Dependencies
-echo "📦 Checking system dependencies..."
-if [ -f /etc/fedora-release ]; then
-    sudo dnf install -y git cmake gcc gcc-c++ make python3 portaudio-devel alsa-utils wget tar clang libgomp
-elif [ -f /etc/debian_version ]; then
-    sudo apt update
-    sudo apt install -y git build-essential cmake portaudio19-dev python3-all-dev alsa-utils wget tar clang libgomp1
-fi
+# ==============================
+# 1️⃣ System Dependencies (Fedora)
+# ==============================
 
-# 2. Conda Setup
-if ! command -v conda &> /dev/null; then
-    echo "🔍 Conda not found. Installing Miniconda..."
-    wget -q --show-progress https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
-    bash miniconda.sh -b -p $HOME/miniconda3
-    rm miniconda.sh
-    source "$HOME/miniconda3/etc/profile.d/conda.sh"
-    conda init bash
-else
-    echo "✅ Conda already installed."
-    source "$(conda info --base)/etc/profile.d/conda.sh"
-fi
+echo "📦 Installing system dependencies..."
 
-# 3. Create Env
-echo "🐍 Setting up 'bitnet-cpp' environment..."
+sudo dnf install -y git cmake gcc gcc-c++ make python3 \
+    portaudio-devel alsa-utils wget tar clang libgomp
+
+# ==============================
+# 2️⃣ Create Conda Environment
+# ==============================
+
+echo "🐍 Setting up Conda environment..."
+
+conda remove -n bitnet-cpp --all -y 2>/dev/null || true
 conda create -n bitnet-cpp python=3.9 -y
-PYTHON_EXE="$(conda info --base)/envs/bitnet-cpp/bin/python"
-PIP_EXE="$(conda info --base)/envs/bitnet-cpp/bin/pip"
 
-# 4. Clone BitNet properly
-echo "📂 Cloning BitNet repo..."
-rm -rf BitNet
-git clone --recursive https://github.com/microsoft/BitNet.git
-cd BitNet
-git submodule update --init --recursive
+eval "$(conda shell.bash hook)"
+conda activate bitnet-cpp
 
-# 5. Install Requirements (Relaxed for Python 3.14 compatibility)
-echo "pip: Installing dependencies..."
-sed -i 's/torch~=2.2.1/torch>=2.2.1/g' requirements.txt 2>/dev/null
-sed -i 's/numpy~=1.26.4/numpy>=1.26.4/g' requirements.txt 2>/dev/null
-$PIP_EXE install -r requirements.txt
-$PIP_EXE install ./3rdparty/llama.cpp/gguf-py
-$PIP_EXE install SpeechRecognition pvporcupine pvrecorder soundfile rapidfuzz python-dotenv requests psutil pyaudio huggingface_hub
+pip install --upgrade pip
+pip install huggingface_hub numpy
 
-# 6. Build Correctly (Manual Flow)
-echo "🛠️ Building BitNet (Official Manual Steps)..."
-# First, run setup_env.py JUST for codegen (headers)
-$PYTHON_EXE setup_env.py -md models/BitNet-b1.58-2B-4T -q i2_s --use-pretuned
 
-# If the above failed to generate binaries, we do the manual build
-mkdir -p build
-cd build
-cmake -DCMAKE_BUILD_TYPE=Release ..
-make -j$(nproc)
-cd "$SCRIPT_DIR"
+# ==============================
+# 4️⃣ Install Whisper.cpp
+# ==============================
 
-# 7. Whisper.cpp Setup
-echo "🎙️ Setting up Whisper.cpp..."
-if [ ! -d "whisper.cpp/.git" ]; then
-    rm -rf whisper.cpp
-    git clone https://github.com/ggerganov/whisper.cpp.git
-fi
+echo "🎙️ Installing Whisper.cpp..."
+
+rm -rf whisper.cpp
+git clone https://github.com/ggerganov/whisper.cpp.git
 cd whisper.cpp
+
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release -j$(nproc)
+
 ./models/download-ggml-model.sh base.en
+
 cd "$SCRIPT_DIR"
 
-# 8. Piper Setup
-echo "🗣️ Setting up Piper TTS..."
-if [ ! -d "piper" ]; then
-    wget -q --show-progress https://github.com/rhasspy/piper/releases/download/v1.2.0/piper_amd64.tar.gz
-    tar -xzf piper_amd64.tar.gz
-    rm piper_amd64.tar.gz
-fi
+# ==============================
+# 5️⃣ Install Piper
+# ==============================
+
+echo "🗣️ Installing Piper..."
+
+rm -rf piper
+wget https://github.com/rhasspy/piper/releases/download/v1.2.0/piper_amd64.tar.gz
+tar -xzf piper_amd64.tar.gz
+rm piper_amd64.tar.gz
 
 mkdir -p voices
 cd voices
-if [ ! -f "en_US-ryan-high.onnx" ]; then
-    wget -q --show-progress -O en_US-ryan-high.onnx https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/ryan/high/en_US-ryan-high.onnx
-    wget -q --show-progress -O en_US-ryan-high.onnx.json https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/ryan/high/en_US-ryan-high.onnx.json
-fi
+
+wget -O en_US-ryan-high.onnx \
+    https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/ryan/high/en_US-ryan-high.onnx
+
+wget -O en_US-ryan-high.onnx.json \
+    https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/ryan/high/en_US-ryan-high.onnx.json
+
 cd "$SCRIPT_DIR"
 
-# 9. Config
-echo "PICOVOICE_ACCESS_KEY=Qvv+c3PAMdarQCAWbWdMjMG25cpSWJKZco0FnbEnUCFlG06F9e8S/Q==" > .env
+# ==============================
+# Done
+# ==============================
 
+echo ""
 echo "✨ Setup Complete!"
 echo "-------------------------------------------------------"
-echo "To run J.A.R.V.I.S. MARK-2:"
-echo "1. conda activate bitnet-cpp"
-echo "2. python main.py"
+echo "Activate environment:"
+echo "conda activate bitnet-cpp"
+echo ""
+echo "Whisper installed at: whisper.cpp"
+echo "Piper installed at: piper/"
+echo ""
+echo "BitNet must be installed manually (see instructions above)."
 echo "-------------------------------------------------------"
+# ==============================
+# 3️⃣ BitNet (Manual Install Only)
+# ==============================
+
+echo "⚠️ BitNet installation is now manual."
+echo ""
+echo "To install BitNet manually:"
+echo "-------------------------------------------------------"
+echo "git clone --recursive https://github.com/microsoft/BitNet.git"
+echo "cd BitNet"
+echo "pip install -r requirements.txt"
+echo ""
+echo "# Download model"
+echo "mkdir -p models/BitNet-b1.58-2B-4T"
+echo "huggingface-cli download microsoft/BitNet-b1.58-2B-4T-gguf --local-dir models/BitNet-b1.58-2B-4T"
+echo ""
+echo "# Build"
+echo "mkdir build && cd build"
+echo "cmake .."
+echo "make -j\$(nproc)"
+echo "-------------------------------------------------------"
+echo ""
