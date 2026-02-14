@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# J.A.R.V.I.S. MARK-2 - Ultra-Robust Automated Installation Script
-# Optimized for CPU-only performance on Linux (Fedora/Ubuntu)
+# J.A.R.V.I.S. MARK-2 - Final Ultra-Robust Installation Script
+# This script bypasses broken upstream setup scripts and builds BitNet manually.
 
 echo "🤖 Starting J.A.R.V.I.S. MARK-2 Setup..."
 
@@ -22,16 +22,12 @@ fi
 
 # 2. Python Environment
 echo "🐍 Setting up Python environment..."
-# Create venv in a stable location
 VENV_DIR="$SCRIPT_DIR/BitNet/bitnet_env"
+mkdir -p "$SCRIPT_DIR/BitNet"
 if [ ! -d "$VENV_DIR" ]; then
-    mkdir -p "$SCRIPT_DIR/BitNet"
     python3 -m venv "$VENV_DIR"
 fi
 source "$VENV_DIR/bin/activate"
-
-# Ensure we use the venv's python/pip for everything
-export PATH="$VENV_DIR/bin:$PATH"
 
 echo "Creating .env file..."
 echo "PICOVOICE_ACCESS_KEY=Qvv+c3PAMdarQCAWbWdMjMG25cpSWJKZco0FnbEnUCFlG06F9e8S/Q==" > .env
@@ -49,40 +45,42 @@ if [ ! -d "whisper.cpp/.git" ]; then
 fi
 cd whisper.cpp
 cmake -B build
-cmake --build build --config Release
+cmake --build build --config Release -j$(nproc)
 echo "📥 Downloading Whisper base.en model..."
 ./models/download-ggml-model.sh base.en
 cd "$SCRIPT_DIR"
 
-# 4. BitNet Setup
+# 4. BitNet Setup (Manual Build)
 echo "🧠 Setting up BitNet 1.58..."
-if [ ! -f "BitNet/setup_env.py" ]; then
-    echo "BitNet repo missing or incomplete. Cloning..."
-    # Keep the venv!
-    mv "$VENV_DIR" "$SCRIPT_DIR/bitnet_env_backup"
+if [ ! -d "BitNet/.git" ]; then
+    echo "Cloning BitNet..."
     rm -rf BitNet
     git clone --recursive https://github.com/microsoft/BitNet.git
-    mv "$SCRIPT_DIR/bitnet_env_backup" "$VENV_DIR"
 fi
 
+# Move venv back in if we just recloned
+if [ ! -d "BitNet/bitnet_env" ]; then
+    mkdir -p BitNet
+    python3 -m venv "$VENV_DIR"
+fi
+source "$VENV_DIR/bin/activate"
+
 cd BitNet
-source bitnet_env/bin/activate
-echo "pip: Installing BitNet specific requirements..."
+echo "pip: Installing BitNet dependencies..."
 pip install -r requirements.txt
+pip install ./3rdparty/llama.cpp/gguf-py
 
 echo "📥 Downloading BitNet 2B model..."
-# Use python -m to ensure we use the correct one
 python3 -m huggingface_hub.commands.hf_cli download microsoft/BitNet-b1.58-2B-4T-gguf --local-dir models/BitNet-b1.58-2B-4T
 
-# Force BitNet to use the current python for its internal calls
-export PYTHON_EXECUTABLE=$(which python3)
-python3 setup_env.py -md models/BitNet-b1.58-2B-4T -q i2_s
+echo "🛠️ Compiling BitNet manually (Bypassing broken setup_env.py)..."
+cmake -B build -DGGML_BITNET=ON
+cmake --build build --config Release -j$(nproc)
 
-# Manual build fallback if setup_env.py didn't create the server
+# Verify build
 if [ ! -f "build/bin/llama-server" ]; then
-    echo "⚠️ setup_env.py didn't build the server. Attempting manual build..."
-    cmake -B build
-    cmake --build build --config Release -j$(nproc)
+    echo "❌ Manual build failed. Please check the logs above."
+    exit 1
 fi
 cd "$SCRIPT_DIR"
 
