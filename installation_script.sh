@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# J.A.R.V.I.S. MARK-2 - Final Automated Installation Script
-# Following Official Microsoft BitNet (bitnet.cpp) steps for Fedora.
+# J.A.R.V.I.S. MARK-2 - Ultimate "Zero-to-Hero" Installation Script
+# This script installs Miniconda (if missing), sets up the environment, and builds everything.
 
 echo "🤖 Starting J.A.R.V.I.S. MARK-2 Setup..."
 
@@ -18,32 +18,37 @@ elif [ -f /etc/debian_version ]; then
     sudo apt install -y git build-essential cmake portaudio19-dev python3-all-dev alsa-utils wget tar clang libgomp1
 fi
 
-# 2. Python Environment (Conda preferred, fallback to venv)
-echo "🐍 Setting up Python environment..."
-if command -v conda &> /dev/null; then
-    echo "Conda found. Creating 'bitnet-cpp' environment..."
-    conda create -n bitnet-cpp python=3.9 -y
-    # We need to use the full path to the conda python for subsequent commands
-    PYTHON_EXE=$(conda info --base)/envs/bitnet-cpp/bin/python
-    PIP_EXE=$(conda info --base)/envs/bitnet-cpp/bin/pip
+# 2. Install Miniconda if missing
+if ! command -v conda &> /dev/null; then
+    echo "🔍 Conda not found. Installing Miniconda..."
+    wget -q --show-progress https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
+    bash miniconda.sh -b -p $HOME/miniconda3
+    rm miniconda.sh
+    source "$HOME/miniconda3/etc/profile.d/conda.sh"
+    conda init bash
 else
-    echo "Conda not found. Falling back to local venv (BitNet/bitnet_env)..."
-    VENV_DIR="$SCRIPT_DIR/BitNet/bitnet_env"
-    mkdir -p "$SCRIPT_DIR/BitNet"
-    python3 -m venv "$VENV_DIR"
-    PYTHON_EXE="$VENV_DIR/bin/python3"
-    PIP_EXE="$VENV_DIR/bin/pip"
+    echo "✅ Conda already installed."
+    source "$(conda info --base)/etc/profile.d/conda.sh"
 fi
 
-echo "Creating .env file..."
-echo "PICOVOICE_ACCESS_KEY=Qvv+c3PAMdarQCAWbWdMjMG25cpSWJKZco0FnbEnUCFlG06F9e8S/Q==" > .env
+# 3. Create & Setup Conda Env
+echo "🐍 Setting up 'bitnet-cpp' Conda environment..."
+if conda env list | grep -q "bitnet-cpp"; then
+    echo "Environment exists. Updating..."
+else
+    conda create -n bitnet-cpp python=3.9 -y
+fi
 
-# 3. Core Requirements
-echo "pip: Installing core requirements..."
+# Set binary paths for the environment
+PYTHON_EXE="$(conda info --base)/envs/bitnet-cpp/bin/python"
+PIP_EXE="$(conda info --base)/envs/bitnet-cpp/bin/pip"
+
+# 4. Install all Python dependencies
+echo "pip: Installing all requirements into Conda environment..."
 $PIP_EXE install --upgrade pip setuptools wheel
 $PIP_EXE install SpeechRecognition pvporcupine pvrecorder soundfile rapidfuzz python-dotenv requests psutil pyaudio numpy huggingface_hub
 
-# 4. Whisper.cpp Setup
+# 5. Whisper.cpp Setup
 echo "🎙️ Setting up Whisper.cpp..."
 if [ ! -d "whisper.cpp/.git" ]; then
     rm -rf whisper.cpp
@@ -56,7 +61,7 @@ echo "📥 Downloading Whisper base.en model..."
 ./models/download-ggml-model.sh base.en
 cd "$SCRIPT_DIR"
 
-# 5. BitNet Setup (Official Microsoft Steps)
+# 6. BitNet Setup (Official Microsoft Steps)
 echo "🧠 Setting up BitNet 1.58..."
 if [ ! -d "BitNet/.git" ]; then
     rm -rf BitNet
@@ -64,7 +69,7 @@ if [ ! -d "BitNet/.git" ]; then
 fi
 
 cd BitNet
-echo "pip: Installing BitNet dependencies..."
+echo "pip: Installing BitNet specific dependencies..."
 # Relax version pinning for newer systems
 sed -i 's/torch~=2.2.1/torch>=2.2.1/g' requirements.txt 2>/dev/null
 sed -i 's/numpy~=1.26.4/numpy>=1.26.4/g' requirements.txt 2>/dev/null
@@ -75,12 +80,10 @@ echo "📥 Downloading BitNet 2B model..."
 $PYTHON_EXE -m huggingface_hub.commands.hf_cli download microsoft/BitNet-b1.58-2B-4T-gguf --local-dir models/BitNet-b1.58-2B-4T
 
 echo "🛠️ Running Codegen & Build..."
-# We MUST run setup_env.py to generate the bitnet-lut-kernels.h file
-# but we force it to use our specific python executable
 export PYTHON_EXECUTABLE=$PYTHON_EXE
 $PYTHON_EXE setup_env.py -md models/BitNet-b1.58-2B-4T -q i2_s
 
-# If the setup script didn't build the server (sometimes it only builds llama-cli), we force it
+# Fallback build if setup_env.py didn't create server
 if [ ! -f "build/bin/llama-server" ]; then
     echo "⚠️ llama-server missing. Forcing manual build..."
     cmake -B build -DGGML_BITNET=ON -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
@@ -88,7 +91,7 @@ if [ ! -f "build/bin/llama-server" ]; then
 fi
 cd "$SCRIPT_DIR"
 
-# 6. Piper TTS Setup
+# 7. Piper TTS Setup
 echo "🗣️ Setting up Piper TTS..."
 if [ ! -d "piper" ]; then
     wget -q --show-progress https://github.com/rhasspy/piper/releases/download/v1.2.0/piper_amd64.tar.gz
@@ -104,13 +107,13 @@ if [ ! -f "en_US-ryan-high.onnx" ]; then
 fi
 cd "$SCRIPT_DIR"
 
+# 8. Final configuration
+echo "Creating .env file..."
+echo "PICOVOICE_ACCESS_KEY=Qvv+c3PAMdarQCAWbWdMjMG25cpSWJKZco0FnbEnUCFlG06F9e8S/Q==" > .env
+
 echo "✨ Setup Complete!"
 echo "-------------------------------------------------------"
 echo "To run J.A.R.V.I.S. MARK-2:"
-if command -v conda &> /dev/null; then
-    echo "1. conda activate bitnet-cpp"
-    echo "2. python main.py"
-else
-    echo "Run: ./BitNet/bitnet_env/bin/python main.py"
-fi
+echo "1. conda activate bitnet-cpp"
+echo "2. python main.py"
 echo "-------------------------------------------------------"
