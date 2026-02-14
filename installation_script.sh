@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# J.A.R.V.I.S. MARK-2 - Robust Automated Installation Script
+# J.A.R.V.I.S. MARK-2 - Full Self-Contained Installation Script
 # Optimized for CPU-only performance on Linux (Fedora/Ubuntu)
 
 echo "🤖 Starting J.A.R.V.I.S. MARK-2 Setup..."
@@ -12,17 +12,16 @@ cd "$SCRIPT_DIR"
 # 1. System Dependencies
 echo "📦 Checking system dependencies..."
 if [ -f /etc/fedora-release ]; then
-    sudo dnf install -y git cmake gcc-c++ make portaudio-devel python3-devel alsa-utils wget
+    sudo dnf install -y git cmake gcc-c++ make portaudio-devel python3-devel alsa-utils wget tar
 elif [ -f /etc/debian_version ]; then
     sudo apt update
-    sudo apt install -y git build-essential cmake portaudio19-dev python3-all-dev alsa-utils wget
+    sudo apt install -y git build-essential cmake portaudio19-dev python3-all-dev alsa-utils wget tar
 else
     echo "⚠️ Unknown OS. Please ensure you have git, cmake, build-essential, and portaudio-dev installed."
 fi
 
 # 2. Python Environment
 echo "🐍 Setting up Python environment..."
-# Create a hidden env folder if BitNet doesn't exist yet to avoid clone conflicts
 mkdir -p .venv_temp
 python3 -m venv .venv_temp
 source .venv_temp/bin/activate
@@ -52,12 +51,10 @@ cd "$SCRIPT_DIR"
 echo "🧠 Setting up BitNet 1.58..."
 if [ ! -f "BitNet/setup_env.py" ]; then
     echo "BitNet repo missing or incomplete. Cloning..."
-    # Move venv out if it was inside to avoid deletion
     rm -rf BitNet
     git clone --recursive https://github.com/microsoft/BitNet.git
 fi
 
-# Move the venv into the BitNet folder as expected by the main app logic
 if [ -d ".venv_temp" ]; then
     mkdir -p BitNet
     mv .venv_temp BitNet/bitnet_env
@@ -73,8 +70,15 @@ huggingface-cli download microsoft/BitNet-b1.58-2B-4T-gguf --local-dir models/Bi
 python setup_env.py -md models/BitNet-b1.58-2B-4T -q i2_s
 cd "$SCRIPT_DIR"
 
-# 5. Piper Voice Model
-echo "🗣️ Setting up Piper Voice..."
+# 5. Piper TTS & Voice Setup
+echo "🗣️ Setting up Piper TTS..."
+if [ ! -d "piper" ]; then
+    echo "📥 Downloading Piper binary..."
+    wget -q --show-progress https://github.com/rhasspy/piper/releases/download/v1.2.0/piper_amd64.tar.gz
+    tar -xzf piper_amd64.tar.gz
+    rm piper_amd64.tar.gz
+fi
+
 mkdir -p voices
 cd voices
 if [ ! -f "en_US-ryan-high.onnx" ]; then
