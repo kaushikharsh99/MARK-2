@@ -1,0 +1,70 @@
+{
+    "llm": {
+        "Model": "llama3.2:3b",
+        "Temperature": 0.7,
+        "Max Tokens": 2048,
+        "System Prompt": "You are a witty play full ai assistant whos resonds with humor and  playful and reply strictly in one sentence ",
+        "Top P": 1,
+        "Frequency Penalty": 0,
+        "Stream Responses": true,
+        "Model Provider": "Ollama",
+        "Engine": "Google STT",
+        "Language": "English",
+        "Noise Suppression": true,
+        "ASR Provider": "Whisper.cpp",
+        "Auto-play Responses": true,
+        "API Calling": true
+    },
+    "asr": {
+        "Model": "llama3.2:3b",
+        "Temperature": 0.7,
+        "Max Tokens": 2048,
+        "System Prompt": "You are a witty play full ai assistant whos resonds with humor and  playful and reply strictly in one sentence ",
+        "Top P": 1,
+        "Frequency Penalty": 0,
+        "Stream Responses": true,
+        "Model Provider": "Ollama",
+        "Engine": "Google STT",
+        "Language": "English",
+        "Noise Suppression": false,
+        "ASR Provider": "Whisper.cpp",
+        "API Calling": true
+    },
+    "tts": {
+        "Model": "llama3.2:3b",
+        "Temperature": 0.7,
+        "Max Tokens": 2048,
+        "System Prompt": "You are a witty play full ai assistant whos resonds with humor and  playful and reply strictly in one sentence ",
+        "Top P": 1,
+        "Frequency Penalty": 0,
+        "Stream Responses": true,
+        "ASR Provider": "Whisper.cpp",
+        "Language": "English",
+        "Auto-play Responses": true,
+        "Model Provider": "Ollama"
+    },
+    "tools": {
+        "Model": "BitNet 2B",
+        "Temperature": 0.8,
+        "Max Tokens": 1792,
+        "System Prompt": "you are a humour ai assitant like to talk with humour and respone on in one line you dont go more that on line in response and responses are complete ",
+        "Top P": 1,
+        "Frequency Penalty": 0,
+        "Stream Responses": true,
+        "Model Provider": "BitNet",
+        "Engine": "Google STT",
+        "Language": "English",
+        "Noise Suppression": true,
+        "API Calling": true
+    },
+    "rag": {
+        "Model": "llama3.2:3b",
+        "Temperature": 0.7,
+        "Max Tokens": 2048,
+        "System Prompt": "You are JARVIS, a helpful AI assistant.",
+        "Top P": 1,
+        "Frequency Penalty": 0,
+        "Stream Responses": true,
+        "Model Provider": "Ollama"
+    }
+}

@@ -22,6 +22,31 @@ class WhisperCPPController:
             
         self.threads = threads
 
+    def transcribe_path(self, wav_path):
+        """Transcribes a wav file at the given path."""
+        try:
+            command = [
+                self.cli_path,
+                "-m", self.model_path,
+                "-f", wav_path,
+                "-t", str(self.threads),
+                "-otxt",
+                "-nt" # no timestamps
+            ]
+            
+            result = subprocess.run(command, capture_output=True, text=True)
+            
+            txt_path = wav_path + ".txt"
+            if os.path.exists(txt_path):
+                with open(txt_path, "r") as tf:
+                    text = tf.read().strip()
+                os.remove(txt_path)
+                return text
+            return result.stdout.strip()
+        except Exception as e:
+            print(f"Error in transcribe_path: {e}")
+            return None
+
     def transcribe(self, audio_data):
         """
         Transcribes audio data using whisper-cli.
